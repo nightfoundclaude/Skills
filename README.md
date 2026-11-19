@@ -1,78 +1,94 @@
-# Skills---
-name: apple-design
-description: Apple's approach to interface design and fluid, physical motion, translated for the web. Use for gesture-driven UI, springs, sheets, materials, typography, dark mode, reduced-motion.
+---
+name: compact-code-style
+description: Required house style for all code, YAML and Ansible: compact one-line YAML, regex, minimal code, reuse repo code, vendor research, verify by running, explain in STE100.
 ---
 
-# Apple Design
+# Compact Code Style
 
-## Initial Response
+These rules are requirements. They are not suggestions. Apply all of them to every code, YAML or Ansible task.
 
-When this skill is first invoked without a specific question, respond only with:
+## 1. Reuse the repo first
 
-> I'm ready to help you build fluid, Apple-style interfaces on the web, my knowledge comes from Apple's WWDC design talks, translated for the web.
+- Before you write code, search the repo. Use `rg` or `grep` for the same task, name, filter, role, template, variable or helper.
+- If code that does the job exists, use it. Do not write a second version.
+- Use the repo's variable names, file layout, module names and patterns.
+- Write new code only when nothing in the repo does the job. Say what you searched for.
 
-Do not provide any other information until the user asks a question.
+## 2. If you do not know, research the vendor
 
-How Apple builds interfaces that stop feeling like a computer and start feeling like an extension of you. This knowledge comes from Apple's WWDC design talks — chiefly *Designing Fluid Interfaces* (WWDC 2018) — distilled and translated into the web platform (CSS, Pointer Events, `requestAnimationFrame`, spring libraries like Motion/Framer Motion).
+- If you do not know how to do a task, do not guess. Do research first.
+- Use the vendor's own sources first: official docs, config guides, API references, release notes, knowledge base, and official GitHub repos or Ansible collections (for example Arista, Fortinet, Eaton, NetBox, Ansible).
+- Use the vendor's recommended method, syntax, module and defaults. Match the docs to the version in use.
+- Use community sources (forums, blogs) only when the vendor has no answer. Say that the source is not from the vendor.
+- In the summary, give the link to each vendor source you used.
 
-The through-line: **an interface feels alive when motion starts from the current on-screen value, inherits the user's velocity, projects momentum forward, and can be grabbed and reversed at any instant.** Springs are the tool that makes all of this natural, because they are inherently interruptible and velocity-aware.
+## 3. YAML is compact
 
-## The Core Idea
+- Use flow style for short maps and lists: `{path: /etc/x, mode: '0644'}`, `[a, b, c]`.
+- One task or one item on one line when it fits in about 120 characters.
+- Break a line only when it is longer than that, or when a block (`when`, `loop`) makes it clearer.
+- No empty keys. No default values written out. No comments that repeat the code.
+- Ansible: use the FQCN (`ansible.builtin.x`). Put the module args in one flow map.
 
-An interface is fluid when it behaves like the physical world: things respond instantly, move continuously, carry momentum, resist at boundaries, and can be redirected mid-motion.
+Example:
 
-Apple frames design as serving four human needs: **safety/predictability, understanding, achievement, and joy.** Every rule here serves one of them.
-
-## 1. Response — kill latency
-
-- **Respond on pointer-down, not on release.** Highlight a button the instant it's pressed.
-- **Be vigilant about every latency.** Audit debounces, artificial timers, transition waits, and the ~300ms tap delay.
-- **Feedback must be continuous during the interaction.** For a drag, slider, or drawer, update the UI 1:1 with the pointer the whole way through.
-
-```css
-.button:active {
-  transform: scale(0.97);
-  transition: transform 100ms ease-out;
-}
+```yaml
+- name: Set NTP server
+  ansible.builtin.lineinfile: {path: /etc/chrony.conf, regexp: '^server ', line: 'server {{ ntp_server }} iburst'}
 ```
 
-## 2. Dark Mode
+## 4. Regex where possible
 
-Dark mode is a full appearance, not an inverted palette.
+- Use one regex instead of many string steps, many tasks or a loop.
+- Ansible: use `regex_search`, `regex_replace`, `regex_findall`, `lineinfile regexp`, `select('match', ...)`.
+- Shell and Python: use one regex instead of chains of `cut`, `split`, `strip`.
+- Anchor the regex (`^`, `$`). Use named groups when there is more than one group.
+- If a regex is longer than about 60 characters, give it a variable with a clear name.
 
-- **Honor the system setting.** Default to `prefers-color-scheme`, declare `color-scheme: light dark`, and offer an override only as a convenience.
-- **Use semantic tokens, never raw colors.** Define roles (background, elevated background, label, secondary label, separator, tint) and swap their values per appearance.
-- **Elevation gets lighter, not shadowed.** Raised surfaces (sheets, popovers, cards) step up: #1C1C1E, #2C2C2E. Shadows barely read in dark mode.
-- **Dim secondary text** to cut glare; reserve full white for primary labels.
-- **Brighten accent colors** (e.g. #007AFF → #0A84FF) so tints keep contrast on dark backgrounds.
-- **Materials stay translucent.** Use `backdrop-filter: blur() saturate()` with a dark-tinted fill.
-- **Check contrast in both appearances** (WCAG AA, 4.5:1 for body text).
-- **Images and icons:** provide dark variants via `<picture>` with `media="(prefers-color-scheme: dark)"`.
+## 5. Names are clear
 
-```css
-:root {
-  color-scheme: light dark;
-  --bg: #FFFFFF;
-  --bg-elevated: #F2F2F7;
-  --label: #000000;
-  --label-secondary: rgba(60,60,67,0.6);
-  --separator: rgba(60,60,67,0.29);
-  --tint: #007AFF;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #000000;
-    --bg-elevated: #1C1C1E;
-    --label: #FFFFFF;
-    --label-secondary: rgba(235,235,245,0.6);
-    --separator: rgba(84,84,88,0.6);
-    --tint: #0A84FF;
-  }
-}
-.material {
-  background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
-  backdrop-filter: blur(20px) saturate(180%);
-}
-```
+- A name tells what the value is: `pdu_outlet_count`, not `n` or `tmp`.
+- Use the domain words of the repo. Use one name for one thing.
+- Booleans start with `is_`, `has_` or `use_`.
 
-- **Switching appearances** should be instant or a short cross-fade (≤200ms); never animate every color individually.
+## 6. Code is minimal (Jane Street house style)
+
+- Explicit is better than clever. Simple code that is easy to read is the goal.
+- Small functions. One function does one thing.
+- No deep nesting. Return early.
+- Handle all cases. Fail loud with a clear error message. Do not fail silently.
+- Make bad states impossible where the language lets you (types, enums, `assert`, `failed_when`).
+- Immutable data where possible. No hidden side effects.
+- No dead code, no unused variables, no speculative options, no "for later" code.
+- Fewest lines that stay clear. Do not compress until it is hard to read.
+
+## 7. Test and verify, then move on
+
+- Run the real thing. Show the command and the result.
+  - YAML: `yamllint` (if present) or a parse check.
+  - Ansible: `ansible-playbook --syntax-check`, then `--check --diff` if a target is available. `ansible-lint` if present.
+  - Scripts: run once on real or sample input. Show the output.
+  - Regex: test it on one line that must match and one line that must not match.
+- Write one or two checks for the change. Do not write large test suites unless the user asks.
+- If a check fails, fix it and run it again. If you cannot run it, say so and say why.
+- When the check passes, stop. Do not add more.
+
+## 8. Explain in STE100 (Simplified Technical English)
+
+All explanations, comments and summaries follow ASD-STE100:
+
+- One instruction in one sentence.
+- Instructions: 20 words or fewer. Descriptions: 25 words or fewer.
+- Use the imperative for instructions: "Run the playbook."
+- Use the active voice. Use simple present or simple past tense.
+- Use one word for one meaning. Use approved, simple words ("use", not "utilize"; "start", not "initiate").
+- No "-ing" forms as nouns or adjectives when you can avoid them.
+- Put each step in a numbered list. Put warnings before the step.
+- No filler. Say what changed, what you ran, and the result.
+
+Summary format:
+
+1. What changed (file and line).
+2. What repo code you used.
+3. What vendor sources you used (links).
+4. What command you ran, and the result.
